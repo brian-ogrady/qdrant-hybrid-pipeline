@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fastembed-hybrid-pipeline"
+version = "0.1.0"
+description = "Configurable Hybrid Search Pipeline with Qdrant and FastEmbed"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Brian O'Grady", email = "genesysdatallc@gmail.com" }
+]
+maintainers = [
+    { name = "Brian O'Grady", email = "genesysdatallc@gmail.com" }
+]
+dependencies = [
+    "fastembed>=0.6.1",
+    "pydantic>=2.11.3",
+    "python-dotenv>=1.1.0",
+    "qdrant-client>=1.13.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-cov>=5.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.14.0",
+    "pytest-xdist>=3.6.0",
+    "mypy>=1.11.0",
+    "ruff>=0.9.7,<0.10",
+    "pre-commit>=3.7.0",
+    "build>=1.0.3",
+    "twine>=4.0.2",
+]
+
+test = ["fastembed-hybrid-pipeline[dev]"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hybrid_search/"]
+
+[tool.hatch.build]
+include = [
+  "src/hybrid_search/**/*.py",
+]

@@ -1,0 +1,6 @@
+[run]
+source = src/hybrid_search
+
+[report]
+show_missing = true
+skip_covered = true

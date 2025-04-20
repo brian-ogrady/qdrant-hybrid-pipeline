@@ -1,3 +1,6 @@
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+
 # FastEmbed Hybrid Pipeline
 
 A configurable hybrid search pipeline for building semantic search applications with [FastEmbed](https://github.com/qdrant/fastembed) and [Qdrant](https://github.com/qdrant/qdrant).

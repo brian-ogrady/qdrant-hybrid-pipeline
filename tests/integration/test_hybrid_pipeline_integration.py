@@ -20,14 +20,25 @@ from qdrant_client.models import (
 from hybrid_search import HybridPipelineConfig, HybridPipeline
 
 class TestHybridPipelineIntegration:
+    """Integration tests for the HybridPipeline class in a multi-node environment."""
+    
     @pytest.fixture
     def client(self):
-        # Connect to the first node of the Qdrant cluster
+        """
+        Create and yield a Qdrant client connected to the cluster.
+        
+        Connects to the first node of the Qdrant cluster using environment variables
+        for configuration. After the test completes, cleans up by deleting all
+        collections created during testing.
+        
+        Returns:
+            QdrantClient: Configured client for the Qdrant vector database
+        """
         host = os.environ.get("QDRANT_HOST", "localhost")
         port = int(os.environ.get("QDRANT_PORT", "6333"))
         client = QdrantClient(host=host, port=port, timeout=180)
         yield client
-        # Clean up collections after test
+        
         try:
             for collection in client.get_collections().collections:
                 client.delete_collection(collection.name)
@@ -36,12 +47,21 @@ class TestHybridPipelineIntegration:
     
     @pytest.fixture
     def hybrid_pipeline_config(self):
-        # Set up embedding models - using small models for fast tests
+        """
+        Create and return a HybridPipelineConfig for testing.
+        
+        Configures all three embedding types (dense, sparse, and late interaction)
+        using small models suitable for testing. Sets up multi-tenant support
+        with tenant partitioning and configures replication and sharding for a
+        two-node cluster setup.
+        
+        Returns:
+            HybridPipelineConfig: Fully configured pipeline config for testing
+        """
         text_model = TextEmbedding("BAAI/bge-small-en-v1.5")
         sparse_model = SparseTextEmbedding("prithivida/Splade_PP_en_v1")
         late_model = LateInteractionTextEmbedding("answerdotai/answerai-colbert-small-v1")
         
-        # Configure vector parameters
         dense_params = VectorParams(
             size=384,
             distance=Distance.COSINE,
@@ -63,11 +83,10 @@ class TestHybridPipelineIntegration:
                 comparator=MultiVectorComparator.MAX_SIM
             ),
             hnsw_config=HnswConfigDiff(
-                m=0,  # Don't create HNSW index for late interaction vector
+                m=0,
             )
         )
         
-        # Set up tenant partition config
         partition_field = "tenant_id"
         partition_index = KeywordIndexParams(
             type="keyword",
@@ -75,36 +94,44 @@ class TestHybridPipelineIntegration:
             on_disk=True,
         )
         
-        # Create config with replication factor of 2 (for our two-node setup)
         return HybridPipelineConfig(
             text_embedding_config=(text_model, dense_params),
             sparse_embedding_config=(sparse_model, sparse_params),
             late_interaction_text_embedding_config=(late_model, late_params),
             partition_config=(partition_field, partition_index),
             multi_tenant=True,
-            replication_factor=2,  # Set to 2 for two-node replication
-            shard_number=3,        # Use 2 shards for testing
+            replication_factor=2,
+            shard_number=3,
         )
     
     def test_replication_works_with_two_nodes(self, client, hybrid_pipeline_config):
-        """Test that our pipeline correctly sets up replication in a two-node cluster"""
-        # Generate unique collection name
+        """
+        Verify replication and multi-tenant functionality in a two-node cluster.
+        
+        This test:
+        1. Creates a collection with replication across two nodes
+        2. Verifies the collection configuration has correct replication factors and sharding
+        3. Tests multi-tenant functionality by:
+           - Inserting documents for different tenants
+           - Searching with tenant-specific filters
+           - Verifying search results are correctly filtered by tenant
+        
+        Args:
+            client: Qdrant client fixture
+            hybrid_pipeline_config: Configured pipeline config fixture
+        """
         collection_name = f"test_collection_{uuid.uuid4().hex[:8]}"
         
-        # Initialize pipeline
         pipeline = HybridPipeline(
             qdrant_client=client,
             collection_name=collection_name,
             hybrid_pipeline_config=hybrid_pipeline_config,
         )
         
-        # Verify collection was created with correct replication factor
         collection_info = client.get_collection(collection_name=collection_name)
         assert collection_info.config.params.replication_factor == 2, "Collection should have replication factor 2"
         assert collection_info.config.params.shard_number == 3, "Collection should have 3 shards"
         
-        # Test multi-tenant functionality
-        # Create test documents for two different tenants
         documents = [
             "Document for tenant A", 
             "Document for tenant B"
@@ -117,24 +144,20 @@ class TestHybridPipelineIntegration:
         
         document_ids = [uuid.uuid4() for _ in range(len(documents))]
         
-        # Insert documents
         pipeline.insert_documents(documents, payloads, document_ids)
         
-        # Search with tenant filter for tenant A
         results_a = pipeline.search(
             query="document tenant", 
             top_k=5,
             partition_filter="tenant_a"
         )
         
-        # Search with tenant filter for tenant B
         results_b = pipeline.search(
             query="document tenant", 
             top_k=5,
             partition_filter="tenant_b"
         )
         
-        # Verify tenant filtering works
         assert len(results_a) > 0, "Should get results for tenant A"
         assert len(results_b) > 0, "Should get results for tenant B"
         assert results_a[0].payload.get("tenant_id") == "tenant_a", "Results should be filtered to tenant A"

@@ -34,7 +34,7 @@ jobs:
       
       - name: Start Qdrant cluster
         run: |
-          docker-compose up -d
+          docker compose up -d
           # Give time for the cluster to initialize fully
           sleep 30
           
@@ -49,4 +49,4 @@ jobs:
       - name: Clean up
         if: always()
         run: |
-          docker-compose down -v
+          docker compose down -v

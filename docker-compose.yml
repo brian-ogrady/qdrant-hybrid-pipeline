@@ -1,0 +1,52 @@
+version: '3.9'
+services:
+  qdrant_node1:
+    image: qdrant/qdrant:v1.13.0
+    container_name: qdrant_node1
+    volumes:
+      - qdrant_node1_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    expose:
+      - 6335
+    networks:
+      - qdrant_net
+    environment:
+      QDRANT__CLUSTER__ENABLED: "true"
+      QDRANT__LOG_LEVEL: "INFO"
+    command: "./qdrant --uri http://qdrant_node1:6335"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  qdrant_node2:
+    image: qdrant/qdrant:v1.13.0
+    container_name: qdrant_node2
+    volumes:
+      - qdrant_node2_data:/qdrant/storage
+    expose:
+      - 6335
+    networks:
+      - qdrant_net
+    depends_on:
+      - qdrant_node1
+    environment:
+      QDRANT__CLUSTER__ENABLED: "true"
+      QDRANT__LOG_LEVEL: "INFO"
+    command: "./qdrant --bootstrap http://qdrant_node1:6335 --uri http://qdrant_node2:6335"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  qdrant_net:
+    driver: bridge
+
+volumes:
+  qdrant_node1_data:
+  qdrant_node2_data:

@@ -11,10 +11,13 @@ from typing import Any, Dict, List, Optional, Union
 from qdrant_client import QdrantClient
 from qdrant_client.conversions import common_types as types
 from qdrant_client.models import (
+    Filter,
+    FieldCondition,
     PointStruct,
     Prefetch,
     QuantizationSearchParams,
     SearchParams,
+    MatchValue,
 )
 
 from .hybrid_pipeline_config import HybridPipelineConfig
@@ -46,6 +49,7 @@ class HybridPipeline:
         partition_field_name: Field name used for partitioning in multi-tenant mode
         partition_index_params: Index parameters for the partition field
     """
+
     def __init__(
         self,
         qdrant_client: QdrantClient,
@@ -125,9 +129,23 @@ class HybridPipeline:
         """
         if isinstance(documents, str):
             documents = [documents]
+        
+        dense_embeddings = [emb.tolist() for emb in list(self.config.dense_model.embed(documents))]
+        sparse_embeddings = [
+            types.SparseVector(
+                indices=emb.indices.tolist(),
+                values=emb.values.tolist()
+            ) for emb in list(self.config.sparse_model.embed(documents))
+    ]
+
+
+        late_interaction_embeddings = list(self.config.late_interaction_model.embed(documents))
+        late_interaction_embeddings = [emb.tolist() for emb in late_interaction_embeddings]
+
         return {
-            config[0].model_name: config[0].embed(documents)
-            for config in self.config.list_embedding_configs()
+            self.config.DENSE_VECTOR_NAME: dense_embeddings,
+            self.config.SPARSE_VECTOR_NAME: sparse_embeddings,
+            self.config.LATE_INTERACTION_VECTOR_NAME: late_interaction_embeddings,
         }
 
     def _prepare_documents(
@@ -174,7 +192,7 @@ class HybridPipeline:
             point = PointStruct(
                 id=document_id,
                 vector={
-                    model_name: embeddings_dict[model_name][i] for model_name in embeddings_dict
+                    vector_name: embeddings_dict[vector_name][i] for vector_name in embeddings_dict
                 },
                 payload=payloads[i],
             )
@@ -231,9 +249,22 @@ class HybridPipeline:
         Returns:
             Dict[str, List[float]]: Dictionary mapping model names to query embeddings
         """
+        dense_embeddings = list(self.config.dense_model.embed([query]))[0].tolist()
+        sparse_embeddings = list(self.config.sparse_model.embed([query]))[0]
+        sparse_embeddings = types.SparseVector(
+            indices=sparse_embeddings.indices.tolist(),
+            values=sparse_embeddings.values.tolist()
+        )
+
+        late_interaction_embeddings = [
+            emb.tolist() for emb in
+            list(self.config.late_interaction_model.embed([query]))[0]
+        ]
+
         return {
-            model.model_name: model.embed([query])[0]
-            for model in self.config.list_embedding_models()
+            self.config.DENSE_VECTOR_NAME: dense_embeddings,
+            self.config.SPARSE_VECTOR_NAME: sparse_embeddings,
+            self.config.LATE_INTERACTION_VECTOR_NAME: late_interaction_embeddings,
         }
     
     def search(
@@ -242,7 +273,7 @@ class HybridPipeline:
         top_k: int = 10,
         partition_filter: Optional[str] = None,
         overquery_factor: float = 1.0,
-    ) -> types.QueryResponse:
+    ) -> List[types.ScoredPoint]:
         """
         Search for documents similar to the query using the hybrid approach.
         
@@ -272,28 +303,23 @@ class HybridPipeline:
         if not self.multi_tenant and partition_filter:
             raise ValueError("partition_filter must be None if multi_tenant is False")
 
-        filter_condition = types.Filter(
+        filter_condition = Filter(
             must=[
-                types.FieldCondition(
+                FieldCondition(
                     key=self.partition_field_name,
-                    match=types.MatchValue(value=partition_filter)
+                    match=MatchValue(value=partition_filter)
                 )
             ]
         )
         
         query_embeddings = self._embed_query(query)
 
-        model_names = self.config.list_embedding_model_names()
-        dense_model_name = model_names[0]
-        sparse_model_name = model_names[1]
-        late_interaction_model_name = model_names[2]
-
         dense_prefetch = Prefetch(
-            query=query_embeddings[dense_model_name],
-            using=dense_model_name,
+            query=query_embeddings[self.config.DENSE_VECTOR_NAME],
+            using=self.config.DENSE_VECTOR_NAME,
             limit=top_k,
             filter=filter_condition,
-            search_params=SearchParams(
+            params=SearchParams(
                 quantization=QuantizationSearchParams(
                     ignore=False,
                     rescore=True,
@@ -303,8 +329,8 @@ class HybridPipeline:
         )
 
         sparse_prefetch = Prefetch(
-            query=query_embeddings[sparse_model_name],
-            using=sparse_model_name,
+            query=query_embeddings[self.config.SPARSE_VECTOR_NAME],
+            using=self.config.SPARSE_VECTOR_NAME,
             limit=top_k,
             filter=filter_condition,
         )
@@ -315,11 +341,11 @@ class HybridPipeline:
                 dense_prefetch,
                 sparse_prefetch,
             ],
-            query=query_embeddings[late_interaction_model_name],
-            using=late_interaction_model_name,
+            query=query_embeddings[self.config.LATE_INTERACTION_VECTOR_NAME],
+            using=self.config.LATE_INTERACTION_VECTOR_NAME,
             limit=top_k,
             with_payload=True,
-        )
+        ).points
     
     def delete_document(self, document_id: str):
         """

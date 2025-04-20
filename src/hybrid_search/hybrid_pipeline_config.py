@@ -5,11 +5,11 @@ This module provides configuration classes and type definitions for setting up
 hybrid search pipelines that combine dense, sparse, and late interaction embeddings.
 """
 
-from typing import List, Mapping, Optional, Tuple, TypeVar, Union
+from typing import ClassVar, List, Mapping, Optional, Tuple, TypeVar
 
 from pydantic import BaseModel, model_validator
 from fastembed.late_interaction import LateInteractionTextEmbedding
-from fastembed.sparse import SparseEmbedding
+from fastembed.sparse import SparseTextEmbedding
 from fastembed.text import TextEmbedding
 from qdrant_client.conversions import common_types as types
 from qdrant_client.models import KeywordIndexParams
@@ -19,7 +19,7 @@ Embedding = TypeVar(
     "Embedding",
     TextEmbedding,
     LateInteractionTextEmbedding,
-    SparseEmbedding
+    SparseTextEmbedding
 )
 """Type variable for the different types of embedding models supported."""
 
@@ -44,7 +44,7 @@ class HybridPipelineConfig(BaseModel):
         text_embedding_config: Configuration for the dense text embedding model.
             A tuple containing a TextEmbedding model instance and its associated VectorParams.
         sparse_embedding_config: Configuration for the sparse embedding model.
-            A tuple containing a SparseEmbedding model instance and its associated SparseVectorParams.
+            A tuple containing a SparseTextEmbedding model instance and its associated SparseVectorParams.
         late_interaction_text_embedding_config: Configuration for the late interaction embedding model.
             A tuple containing a LateInteractionTextEmbedding model instance and its associated VectorParams.
         partition_config: Configuration for multi-tenant partitioning.
@@ -58,8 +58,12 @@ class HybridPipelineConfig(BaseModel):
         shard_number: The number of shards for the Qdrant collection.
             Affects write performance and horizontal scalability. Default is 3.
     """
+    DENSE_VECTOR_NAME: ClassVar[str] = "dense"
+    SPARSE_VECTOR_NAME: ClassVar[str] = "sparse"
+    LATE_INTERACTION_VECTOR_NAME: ClassVar[str] = "multivector"
+
     text_embedding_config: Tuple[TextEmbedding, types.VectorParams]
-    sparse_embedding_config: Tuple[SparseEmbedding, types.SparseVectorParams]
+    sparse_embedding_config: Tuple[SparseTextEmbedding, types.SparseVectorParams]
     late_interaction_text_embedding_config: Tuple[LateInteractionTextEmbedding, types.VectorParams]
     # TODO: Replace PartitionConfig with MultiTenantConfig -> allow user to specify global index or not during collection creation
     partition_config: Optional[Tuple[str, KeywordIndexParams]] = None
@@ -105,7 +109,7 @@ class HybridPipelineConfig(BaseModel):
         ]:
             if config_name == "text_embedding_config" and not isinstance(model, TextEmbedding):
                 raise ValueError(f"Embedding model in {config_name} must be an instance of TextEmbedding")
-            elif config_name == "sparse_embedding_config" and not isinstance(model, SparseEmbedding):
+            elif config_name == "sparse_embedding_config" and not isinstance(model, SparseTextEmbedding):
                 raise ValueError(f"Embedding model in {config_name} must be an instance of SparseEmbedding")
             elif config_name == "late_interaction_text_embedding_config" and not isinstance(model, LateInteractionTextEmbedding):
                 raise ValueError(f"Embedding model in {config_name} must be an instance of LateInteractionTextEmbedding")
@@ -116,6 +120,51 @@ class HybridPipelineConfig(BaseModel):
             if not hasattr(model, "embed") or not callable(getattr(model, "embed")):
                 raise ValueError(f"Embedding model in {config_name} must have an 'embed' method")
         return self
+    
+    @property
+    def dense_model_config(self) -> Tuple[TextEmbedding, types.VectorParams]:
+        """Get the dense embedding model configuration."""
+        return self.text_embedding_config
+    
+    @property
+    def sparse_model_config(self) -> Tuple[SparseTextEmbedding, types.SparseVectorParams]:
+        """Get the sparse embedding model configuration."""
+        return self.sparse_embedding_config
+    
+    @property
+    def late_interaction_model_config(self) -> Tuple[LateInteractionTextEmbedding, types.VectorParams]:
+        """Get the late interaction embedding model configuration."""
+        return self.late_interaction_text_embedding_config
+    
+    @property
+    def dense_model(self) -> TextEmbedding:
+        """Get the dense embedding model."""
+        return self.dense_model_config[0]
+    
+    @property
+    def sparse_model(self) -> SparseTextEmbedding:
+        """Get the sparse embedding model."""
+        return self.sparse_model_config[0]
+    
+    @property
+    def late_interaction_model(self) -> LateInteractionTextEmbedding:
+        """Get the late interaction embedding model."""
+        return self.late_interaction_model_config[0]
+    
+    @property
+    def dense_model_name(self) -> str:
+        """Get the name of the dense embedding model."""
+        return self.dense_model.model_name
+    
+    @property
+    def sparse_model_name(self) -> str:
+        """Get the name of the sparse embedding model."""
+        return self.sparse_model.model_name
+    
+    @property
+    def late_interaction_model_name(self) -> str:
+        """Get the name of the late interaction embedding model."""
+        return self.late_interaction_model.model_name
 
     def list_embedding_configs(self) -> List[Tuple[Embedding, BaseVectorParams]]:
         """
@@ -163,8 +212,8 @@ class HybridPipelineConfig(BaseModel):
             Mapping[str, types.VectorParams]: Dictionary mapping model names to VectorParams
         """
         return {
-            self.text_embedding_config[0].model_name: self.text_embedding_config[1],
-            self.late_interaction_text_embedding_config[0].model_name: self.late_interaction_text_embedding_config[1],
+            self.DENSE_VECTOR_NAME: self.dense_model_config[1],
+            self.LATE_INTERACTION_VECTOR_NAME: self.late_interaction_model_config[1],
         }
     
     def get_sparse_vectors_config_dict(self) -> Mapping[str, types.SparseVectorParams]:
@@ -175,7 +224,7 @@ class HybridPipelineConfig(BaseModel):
             Mapping[str, types.SparseVectorParams]: Dictionary mapping model names to SparseVectorParams
         """
         return {
-            self.sparse_embedding_config[0].model_name: self.sparse_embedding_config[1],
+            self.SPARSE_VECTOR_NAME: self.sparse_model_config[1],
         }
     
     def get_partition_config(self) -> Tuple[str, KeywordIndexParams]:

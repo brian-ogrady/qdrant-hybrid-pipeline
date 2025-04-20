@@ -28,6 +28,9 @@ jobs:
           uv venv
           source .venv/bin/activate
           uv pip install -e ".[dev]"
+
+      - name: Set up Docker Compose
+        uses: docker/setup-buildx-action@v2
       
       - name: Start Qdrant cluster
         run: |

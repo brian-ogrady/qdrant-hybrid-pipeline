@@ -1,5 +1,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![PyPI version](https://badge.fury.io/py/fastembed-hybrid-pipeline.svg)](https://pypi.org/project/fastembed-hybrid-pipeline/)
 
 # FastEmbed Hybrid Pipeline
 

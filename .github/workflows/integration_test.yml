@@ -44,7 +44,7 @@ jobs:
           
       - name: Run integration tests
         run: |
-          pytest tests/integration/ -v
+          python -m pytest tests/integration/ -v
           
       - name: Clean up
         if: always()

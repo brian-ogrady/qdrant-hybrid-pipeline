@@ -35,7 +35,7 @@ client = QdrantClient(":memory:")  # Use a local instance or Qdrant Cloud
 
 # Configure embedding models
 text_model = TextEmbedding("BAAI/bge-small-en-v1.5")
-sparse_model = SparseEmbedding("sentence-transformers/all-MiniLM-L6-v2")
+sparse_model = SparseEmbedding("Qdrant/bm25")
 late_interaction_model = LateInteractionTextEmbedding("intfloat/e5-small-v2")
 
 # Configure vector parameters

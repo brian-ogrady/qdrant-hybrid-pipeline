@@ -8,6 +8,7 @@ embedding types for improved search performance.
 import uuid
 from typing import Any, Dict, List, Optional, Union
 
+from fastembed import TextEmbedding
 from qdrant_client import QdrantClient
 from qdrant_client.conversions import common_types as types
 from qdrant_client.models import (
@@ -20,7 +21,7 @@ from qdrant_client.models import (
     MatchValue,
 )
 
-from .hybrid_pipeline_config import HybridPipelineConfig
+from .hybrid_pipeline_config import HybridPipelineConfig, SentenceTransformerEmbedding
 
 
 class HybridPipeline:
@@ -130,13 +131,17 @@ class HybridPipeline:
         if isinstance(documents, str):
             documents = [documents]
         
-        dense_embeddings = [emb.tolist() for emb in list(self.config.dense_model.embed(documents))]
+        if isinstance(self.config.dense_model, SentenceTransformerEmbedding):
+            dense_embeddings = self.config.dense_model.embed(documents)
+        else:
+            dense_embeddings = [emb.tolist() for emb in list(self.config.dense_model.embed(documents))]
+        
         sparse_embeddings = [
             types.SparseVector(
                 indices=emb.indices.tolist(),
                 values=emb.values.tolist()
             ) for emb in list(self.config.sparse_model.embed(documents))
-    ]
+        ]
 
 
         late_interaction_embeddings = list(self.config.late_interaction_model.embed(documents))
@@ -249,7 +254,10 @@ class HybridPipeline:
         Returns:
             Dict[str, List[float]]: Dictionary mapping model names to query embeddings
         """
-        dense_embeddings = list(self.config.dense_model.embed([query]))[0].tolist()
+        if isinstance(self.config.dense_model, SentenceTransformerEmbedding):
+            dense_embeddings = self.config.dense_model.embed([query])[0]
+        else:
+            dense_embeddings = list(self.config.dense_model.embed([query]))[0].tolist()
         sparse_embeddings = list(self.config.sparse_model.embed([query]))[0]
         sparse_embeddings = types.SparseVector(
             indices=sparse_embeddings.indices.tolist(),

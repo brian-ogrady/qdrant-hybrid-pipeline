@@ -5,7 +5,7 @@ This module provides configuration classes and type definitions for setting up
 hybrid search pipelines that combine dense, sparse, and late interaction embeddings.
 """
 
-from typing import ClassVar, List, Mapping, Optional, Tuple, TypeVar
+from typing import ClassVar, List, Mapping, Optional, Tuple, TypeVar, Union
 
 from pydantic import BaseModel, model_validator
 from fastembed.late_interaction import LateInteractionTextEmbedding
@@ -13,13 +13,31 @@ from fastembed.sparse import SparseTextEmbedding
 from fastembed.text import TextEmbedding
 from qdrant_client.conversions import common_types as types
 from qdrant_client.models import KeywordIndexParams
+from sentence_transformers import SentenceTransformer
+
+
+class SentenceTransformerEmbedding(SentenceTransformer):
+    """
+    A wrapper around the SentenceTransformer class that adds a model_name attribute.
+    """
+    def __init__(self, model_name_or_path: str, *args, **kwargs):
+        self._model_name_or_path = model_name_or_path
+        super().__init__(model_name_or_path, *args, **kwargs)
+    
+    @property
+    def model_name(self) -> str:
+        return self._model_name_or_path
+    
+    def embed(self, texts: List[str], **kwargs) -> List[List[float]]:
+        return self.encode(texts, **kwargs).tolist()
 
 
 Embedding = TypeVar(
     "Embedding",
     TextEmbedding,
     LateInteractionTextEmbedding,
-    SparseTextEmbedding
+    SparseTextEmbedding,
+    SentenceTransformerEmbedding,
 )
 """Type variable for the different types of embedding models supported."""
 
@@ -62,7 +80,7 @@ class HybridPipelineConfig(BaseModel):
     SPARSE_VECTOR_NAME: ClassVar[str] = "sparse"
     LATE_INTERACTION_VECTOR_NAME: ClassVar[str] = "multivector"
 
-    text_embedding_config: Tuple[TextEmbedding, types.VectorParams]
+    text_embedding_config: Tuple[Union[TextEmbedding, SentenceTransformerEmbedding], types.VectorParams]
     sparse_embedding_config: Tuple[SparseTextEmbedding, types.SparseVectorParams]
     late_interaction_text_embedding_config: Tuple[LateInteractionTextEmbedding, types.VectorParams]
     # TODO: Replace PartitionConfig with MultiTenantConfig -> allow user to specify global index or not during collection creation
@@ -107,7 +125,7 @@ class HybridPipelineConfig(BaseModel):
             ("sparse_embedding_config", self.sparse_embedding_config),
             ("late_interaction_text_embedding_config", self.late_interaction_text_embedding_config)
         ]:
-            if config_name == "text_embedding_config" and not isinstance(model, TextEmbedding):
+            if config_name == "text_embedding_config" and not isinstance(model, Union[TextEmbedding, SentenceTransformerEmbedding]):
                 raise ValueError(f"Embedding model in {config_name} must be an instance of TextEmbedding")
             elif config_name == "sparse_embedding_config" and not isinstance(model, SparseTextEmbedding):
                 raise ValueError(f"Embedding model in {config_name} must be an instance of SparseEmbedding")

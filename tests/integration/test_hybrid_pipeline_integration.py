@@ -17,7 +17,7 @@ from qdrant_client.models import (
     MultiVectorComparator,
 )
 
-from hybrid_search import HybridPipelineConfig, HybridPipeline
+from hybrid_search import HybridPipelineConfig, HybridPipeline, SentenceTransformerEmbedding
 
 class TestHybridPipelineIntegration:
     """Integration tests for the HybridPipeline class in a multi-node environment."""
@@ -59,6 +59,7 @@ class TestHybridPipelineIntegration:
             HybridPipelineConfig: Fully configured pipeline config for testing
         """
         text_model = TextEmbedding("BAAI/bge-small-en-v1.5")
+        sentence_transformer_model = SentenceTransformerEmbedding("BAAI/bge-small-en-v1.5", device="mps")
         sparse_model = SparseTextEmbedding("prithivida/Splade_PP_en_v1")
         late_model = LateInteractionTextEmbedding("answerdotai/answerai-colbert-small-v1")
         
@@ -95,7 +96,7 @@ class TestHybridPipelineIntegration:
         )
         
         return HybridPipelineConfig(
-            text_embedding_config=(text_model, dense_params),
+            text_embedding_config=(sentence_transformer_model, dense_params),
             sparse_embedding_config=(sparse_model, sparse_params),
             late_interaction_text_embedding_config=(late_model, late_params),
             partition_config=(partition_field, partition_index),

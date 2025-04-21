@@ -36,7 +36,7 @@ client = QdrantClient(":memory:")  # Use a local instance or Qdrant Cloud
 # Configure embedding models
 text_model = TextEmbedding("BAAI/bge-small-en-v1.5")
 sparse_model = SparseEmbedding("Qdrant/bm25")
-late_interaction_model = LateInteractionTextEmbedding("intfloat/e5-small-v2")
+late_interaction_model = LateInteractionTextEmbedding("answerdotai/answerai-colbert-small-v1")
 
 # Configure vector parameters
 dense_params = VectorParams(size=text_model.dimensions, distance=Distance.COSINE)

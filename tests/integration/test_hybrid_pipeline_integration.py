@@ -59,7 +59,7 @@ class TestHybridPipelineIntegration:
             HybridPipelineConfig: Fully configured pipeline config for testing
         """
         text_model = TextEmbedding("BAAI/bge-small-en-v1.5")
-        sentence_transformer_model = SentenceTransformerEmbedding("BAAI/bge-small-en-v1.5", device="mps")
+        sentence_transformer_model = SentenceTransformerEmbedding("BAAI/bge-small-en-v1.5")
         sparse_model = SparseTextEmbedding("prithivida/Splade_PP_en_v1")
         late_model = LateInteractionTextEmbedding("answerdotai/answerai-colbert-small-v1")
         

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "fastembed-hybrid-pipeline"
+name = "qdrant-hybrid-pipeline"
 version = "0.1.0"
 description = "Configurable Hybrid Search Pipeline with Qdrant and FastEmbed"
 readme = "README.md"

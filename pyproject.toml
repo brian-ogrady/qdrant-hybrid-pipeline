@@ -30,7 +30,7 @@ dependencies = [
     "fastembed>=0.6.1",
     "pydantic>=2.11.3",
     "python-dotenv>=1.1.0",
-    "qdrant-client>=1.13.3",
+    "qdrant-client>=1.14.2",
     "sentence-transformers>=4.1.0",
 ]
 

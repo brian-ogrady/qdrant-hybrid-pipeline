@@ -1,7 +1,7 @@
 version: '3.9'
 services:
   qdrant_node1:
-    image: qdrant/qdrant:v1.13.0
+    image: qdrant/qdrant:v1.14.0
     container_name: qdrant_node1
     volumes:
       - qdrant_node1_data:/qdrant/storage
@@ -23,7 +23,7 @@ services:
       retries: 5
   
   qdrant_node2:
-    image: qdrant/qdrant:v1.13.0
+    image: qdrant/qdrant:v1.14.0
     container_name: qdrant_node2
     volumes:
       - qdrant_node2_data:/qdrant/storage

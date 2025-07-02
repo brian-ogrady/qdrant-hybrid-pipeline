@@ -76,11 +76,15 @@ class HybridPipeline:
         self.multi_tenant = self.config.multi_tenant
         self.replication_factor = self.config.replication_factor
         self.shard_number = self.config.shard_number
-        self.partition_field_name, self.partition_index_params = self.config.get_partition_config()
+                
         self._create_collection()
-
+        
         if self.multi_tenant:
+            self.partition_field_name, self.partition_index_params = self.config.get_partition_config()
             self._create_payload_index()
+        else:
+            self.partition_field_name = None
+            self.partition_index_params = None
         
     def _create_collection(self) -> bool:
         """

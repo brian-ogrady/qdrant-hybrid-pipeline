@@ -120,18 +120,20 @@ class HybridPipelineConfig(BaseModel):
         if not isinstance(self.shard_number, int) or self.shard_number < 1:
             raise ValueError("shard_number must be an integer greater than 0") 
         
-        for config_name, (model, _) in [
+        for config_name, config_tuple in [
             ("text_embedding_config", self.text_embedding_config),
             ("sparse_embedding_config", self.sparse_embedding_config),
             ("late_interaction_text_embedding_config", self.late_interaction_text_embedding_config)
         ]:
+            if config_tuple is None:
+                continue
+            model, _ = config_tuple
             if config_name == "text_embedding_config" and not isinstance(model, Union[TextEmbedding, SentenceTransformerEmbedding]):
                 raise ValueError(f"Embedding model in {config_name} must be an instance of TextEmbedding")
             elif config_name == "sparse_embedding_config" and not isinstance(model, SparseTextEmbedding):
                 raise ValueError(f"Embedding model in {config_name} must be an instance of SparseEmbedding")
-            elif config_name == "late_interaction_text_embedding_config":
-                if model is not None and not isinstance(model, LateInteractionTextEmbedding):
-                    raise ValueError(f"Embedding model in {config_name} must be an instance of LateInteractionTextEmbedding")
+            elif config_name == "late_interaction_text_embedding_config" and not isinstance(model, LateInteractionTextEmbedding):
+                raise ValueError(f"Embedding model in {config_name} must be an instance of LateInteractionTextEmbedding")
             
             if not hasattr(model, "model_name"):
                 raise ValueError(f"Embedding model in {config_name} must have a 'model_name' attribute")

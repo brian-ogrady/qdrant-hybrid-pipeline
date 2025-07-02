@@ -1,0 +1,17 @@
+dense_embedding:
+  package: "fastembed"
+  model_name: "intfloat/multilingual-e5-large"
+  params:
+    size: 1024
+    distance: "Cosine"
+    on_disk: true
+
+sparse_embedding:
+  package: "fastembed"
+  model_name: "Qdrant/bm25"
+  params: {}
+
+# --- General Pipeline Settings ---
+multi_tenant: false
+replication_factor: 1
+shard_number: 3

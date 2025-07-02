@@ -14,6 +14,8 @@ from qdrant_client.conversions import common_types as types
 from qdrant_client.models import (
     Filter,
     FieldCondition,
+    Fusion,
+    FusionQuery,
     PointStruct,
     Prefetch,
     QuantizationSearchParams,
@@ -147,15 +149,17 @@ class HybridPipeline:
             ) for emb in list(self.config.sparse_model.embed(documents))
         ]
 
-
-        late_interaction_embeddings = list(self.config.late_interaction_model.embed(documents))
-        late_interaction_embeddings = [emb.tolist() for emb in late_interaction_embeddings]
-
-        return {
+        embeddings = {
             self.config.DENSE_VECTOR_NAME: dense_embeddings,
             self.config.SPARSE_VECTOR_NAME: sparse_embeddings,
-            self.config.LATE_INTERACTION_VECTOR_NAME: late_interaction_embeddings,
         }
+
+        if self.config.late_interaction_model:
+            late_interaction_embeddings = list(self.config.late_interaction_model.embed(documents))
+            late_interaction_embeddings = [emb.tolist() for emb in late_interaction_embeddings]
+            embeddings[self.config.LATE_INTERACTION_VECTOR_NAME] = late_interaction_embeddings
+
+        return embeddings
 
     def _prepare_documents(
         self,
@@ -268,16 +272,19 @@ class HybridPipeline:
             values=sparse_embeddings.values.tolist()
         )
 
-        late_interaction_embeddings = [
-            emb.tolist() for emb in
-            list(self.config.late_interaction_model.embed([query]))[0]
-        ]
-
-        return {
+        embeddings = {
             self.config.DENSE_VECTOR_NAME: dense_embeddings,
             self.config.SPARSE_VECTOR_NAME: sparse_embeddings,
-            self.config.LATE_INTERACTION_VECTOR_NAME: late_interaction_embeddings,
         }
+
+        if self.config.late_interaction_model:
+            late_interaction_embeddings = [
+                emb.tolist() for emb in list(self.config.late_interaction_model.embed([query]))[0]
+            ]
+
+            embeddings[self.config.LATE_INTERACTION_VECTOR_NAME] = late_interaction_embeddings
+
+        return embeddings
     
     def search(
         self,
@@ -312,17 +319,17 @@ class HybridPipeline:
             raise ValueError("overquery_factor must be greater than or equal to 1.0")
         
         filter_condition = None
-        if not self.multi_tenant and partition_filter:
-            raise ValueError("partition_filter must be None if multi_tenant is False")
-
-        filter_condition = Filter(
-            must=[
-                FieldCondition(
-                    key=self.partition_field_name,
-                    match=MatchValue(value=partition_filter)
-                )
-            ]
-        )
+        if partition_filter:
+            if not self.multi_tenant:
+                raise ValueError("partition_filter must be None if multi_tenant is False")
+            filter_condition = Filter(
+                must=[
+                    FieldCondition(
+                        key=self.partition_field_name,
+                        match=MatchValue(value=partition_filter)
+                    )
+                ]
+            )
         
         query_embeddings = self._embed_query(query)
 
@@ -347,14 +354,19 @@ class HybridPipeline:
             filter=filter_condition,
         )
 
+        final_query = (
+            FusionQuery(fusion=Fusion.RRF) if not self.config.late_interaction_model 
+            else query_embeddings[self.config.LATE_INTERACTION_VECTOR_NAME]
+        )
+
         return self.qdrant_client.query_points(
             collection_name=self.collection_name,
             prefetch=[
                 dense_prefetch,
                 sparse_prefetch,
             ],
-            query=query_embeddings[self.config.LATE_INTERACTION_VECTOR_NAME],
-            using=self.config.LATE_INTERACTION_VECTOR_NAME,
+            query=final_query,
+            using=self.config.LATE_INTERACTION_VECTOR_NAME if self.config.late_interaction_model else None,
             limit=top_k,
             with_payload=True,
         ).points

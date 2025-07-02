@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "qdrant-hybrid-pipeline"
-version = "0.2.1"
+version = "0.2.2"
 description = "Configurable Hybrid Search Pipeline with Qdrant and FastEmbed"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,6 +30,7 @@ dependencies = [
     "fastembed>=0.6.1",
     "pydantic>=2.11.3",
     "python-dotenv>=1.1.0",
+    "pyyaml>=6.0.2",
     "qdrant-client>=1.14.2",
     "sentence-transformers>=4.1.0",
 ]

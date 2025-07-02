@@ -17,7 +17,12 @@ from qdrant_client.models import (
     MultiVectorComparator,
 )
 
-from hybrid_search import HybridPipelineConfig, HybridPipeline, SentenceTransformerEmbedding
+from hybrid_search import (
+    HybridPipelineConfig,
+    HybridPipeline,
+    SentenceTransformerEmbedding,
+    create_hybrid_pipeline_from_yaml,
+)
 
 class TestHybridPipelineIntegration:
     """Integration tests for the HybridPipeline class in a multi-node environment."""
@@ -163,3 +168,33 @@ class TestHybridPipelineIntegration:
         assert len(results_b) > 0, "Should get results for tenant B"
         assert results_a[0].payload.get("tenant_id") == "tenant_a", "Results should be filtered to tenant A"
         assert results_b[0].payload.get("tenant_id") == "tenant_b", "Results should be filtered to tenant B"
+    
+    def test_pipeline_creation_from_yaml(self, client):
+        """
+        Verify that the pipeline can be correctly initialized from a YAML file.
+
+        This test:
+        1. Loads a configuration from a YAML file in the root directory.
+        2. Initializes the HybridPipeline with the file path.
+        3. Verifies that the created collection in Qdrant has the parameters
+           specified in the YAML file.
+        
+        Args:
+            client: Qdrant client fixture
+        """
+        collection_name = f"test_yaml_collection_{uuid.uuid4().hex[:8]}"
+        
+        yaml_config_path = "config_examples/base_config.yml"
+
+        pipeline = HybridPipeline(
+            qdrant_client=client,
+            collection_name=collection_name,
+            hybrid_pipeline_config=create_hybrid_pipeline_from_yaml(yaml_config_path),
+        )
+
+        collection_info = client.get_collection(collection_name=collection_name)
+        assert collection_info.config.params.replication_factor == 2
+        assert collection_info.config.params.shard_number == 3
+        dense_vector_params = collection_info.config.params.vectors['dense']
+        assert dense_vector_params.size == 384
+        assert dense_vector_params.distance == Distance.COSINE

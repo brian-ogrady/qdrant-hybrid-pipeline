@@ -32,7 +32,7 @@ dependencies = [
     "python-dotenv>=1.1.0",
     "pyyaml>=6.0.2",
     "qdrant-client>=1.14.2",
-    "sentence-transformers>=4.1.0",
+    "sentence-transformers==5.0.0",
 ]
 
 [project.optional-dependencies]

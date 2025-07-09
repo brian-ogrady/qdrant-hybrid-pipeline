@@ -1,8 +1,8 @@
 dense_embedding:
-  package: "fastembed"
-  model_name: "sentence-transformers/all-MiniLM-L6-v2"
+  package: "sentence-transformers"
+  model_name: "Qwen/Qwen3-Embedding-4B"
   params:
-    size: 384
+    size: 2560
     distance: "Cosine"
     on_disk: true
 
@@ -22,10 +22,6 @@ late_interaction_embedding:
       comparator: "MAX_SIM"
 
 # --- General Pipeline Settings ---
-multi_tenant: true
-replication_factor: 2
+multi_tenant: false
+replication_factor: 1
 shard_number: 3
-partition_config:
-  field: "tenant_id"
-  type: "keyword"
-  on_disk: true

@@ -2,7 +2,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
 [![PyPI version](https://badge.fury.io/py/qdrant-hybrid-pipeline.svg)](https://pypi.org/project/qdrant-hybrid-pipeline/)
 
-# FastEmbed Hybrid Pipeline
+# Qdrant Hybrid Pipeline
 
 A configurable hybrid search pipeline for building semantic search applications with [FastEmbed](https://github.com/qdrant/fastembed) and [Qdrant](https://github.com/qdrant/qdrant).
 
@@ -24,7 +24,7 @@ pip install fastembed-hybrid-pipeline
 ## Quick Start
 
 ```python
-from qdrant_client import QdrantClient
+from qdrant_client import QdrantClient, models
 from fastembed import TextEmbedding, SparseEmbedding, LateInteractionTextEmbedding
 from qdrant_client.models import Distance, VectorParams, SparseVectorParams, KeywordIndexParams
 from hybrid_search import HybridPipelineConfig, HybridPipeline
@@ -40,7 +40,7 @@ late_interaction_model = LateInteractionTextEmbedding("answerdotai/answerai-colb
 
 # Configure vector parameters
 dense_params = VectorParams(size=text_model.dimensions, distance=Distance.COSINE)
-sparse_params = SparseVectorParams()
+sparse_params = SparseVectorParams(modifier=models.Modifier.IDF)
 late_interaction_params = VectorParams(size=late_interaction_model.dimensions, distance=Distance.COSINE)
 
 # Optional: Configure multi-tenancy
